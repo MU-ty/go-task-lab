@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 )
 
 var ErrNotFound = errors.New("任务不存在")
@@ -22,12 +23,18 @@ type Repository interface {
 	Save([]Task) error
 }
 
-type Service struct{ repo Repository }
+// HTTP 请求会并发调用 Service；锁覆盖整个读取、修改、保存过程。
+type Service struct {
+	repo Repository
+	mu   sync.Mutex
+}
 
 func New(repo Repository) *Service { return &Service{repo: repo} }
 
 // Add 展示指针接收者、多返回值、:=、range、append 和错误传播。
 func (s *Service) Add(title string) (Task, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	title = strings.TrimSpace(title)
 	if title == "" {
 		return Task{}, errors.New("标题不能为空")
@@ -50,6 +57,8 @@ func (s *Service) Add(title string) (Task, error) {
 }
 
 func (s *Service) List(status string) ([]Task, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if status != "all" && status != "open" && status != "done" {
 		return nil, errors.New("状态必须为 all、open 或 done")
 	}
@@ -67,6 +76,13 @@ func (s *Service) List(status string) ([]Task, error) {
 }
 
 func (s *Service) Complete(id int) error {
+	return s.SetDone(id, true)
+}
+
+// SetDone 支持网页勾选完成和恢复未完成。
+func (s *Service) SetDone(id int, done bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	tasks, err := s.repo.Load()
 	if err != nil {
 		return err
@@ -74,7 +90,7 @@ func (s *Service) Complete(id int) error {
 	for i := range tasks {
 		// 修改切片元素用索引；range 返回的结构体变量是副本。
 		if tasks[i].ID == id {
-			tasks[i].Done = true
+			tasks[i].Done = done
 			return s.repo.Save(tasks)
 		}
 	}
@@ -82,6 +98,8 @@ func (s *Service) Complete(id int) error {
 }
 
 func (s *Service) Delete(id int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	tasks, err := s.repo.Load()
 	if err != nil {
 		return err
@@ -95,6 +113,8 @@ func (s *Service) Delete(id int) error {
 }
 
 func (s *Service) Stats() (map[string]int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	tasks, err := s.repo.Load()
 	if err != nil {
 		return nil, err

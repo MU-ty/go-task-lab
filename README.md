@@ -1,6 +1,22 @@
 # Go Task Lab
 
-通过一个可以实际运行的命令行待办清单学习 Go。中文注释、分步教程、练习和测试齐全；只使用标准库，无需数据库或第三方依赖。
+通过一个可以实际运行的交互式网站和命令行待办清单学习 Go。中文注释、分步教程、练习和测试齐全；只使用标准库，无需数据库或第三方依赖。
+
+## 交互式网站
+
+在项目根目录启动 Go 服务：
+
+```sh
+go run ./cmd/web
+```
+
+然后打开 **http://127.0.0.1:8080**。网站支持新增、完成/恢复、删除确认、状态筛选、搜索、统计和可展开的学习章节。真实数据保存在服务端 `tasks.json`，刷新页面仍然存在；首次打开为空清单。
+
+前端 HTML/CSS/JavaScript 通过 `go:embed` 打包进 Go 程序，无需 Node.js、前端打包或 CDN。学习请求流程见 [网站学习说明](docs/WEB.md)。
+
+自定义地址和数据文件：`go run ./cmd/web -addr 127.0.0.1:8081 -file web-tasks.json`。额外的数据文件请自行加入 `.gitignore`，避免提交个人任务。
+
+Windows 可运行 `go build -o bin/go-task-web.exe ./cmd/web` 生成程序，或在项目目录双击 `start-web.cmd`。运行中保持终端开启，按 Ctrl+C 关闭服务。
 
 ## 快速开始
 
@@ -40,6 +56,8 @@ go test ./...
 cmd/task/             命令解析与输出
 internal/task/        业务规则及 Repository 接口
 internal/storage/     JSON 文件存储
+cmd/web/              Go HTTP 服务入口
+internal/web/         API、网页资源和 HTTP 测试
 examples/concurrency/ 独立并发示例
 docs/LEARNING.md      语法讲解和进阶练习
 .github/workflows/   自动格式检查、静态检查、测试、编译
@@ -60,7 +78,9 @@ go build ./...
 
 ## 范围与练习
 
-这是单进程学习工具：不要同时启动多个命令修改同一文件。当前直接写入 JSON，不提供文件锁或断电恢复；删除最大 ID 后，该 ID 可能被再次使用。可将原子写入、持久化 ID 序列、并发访问支持作为进阶练习。
+这是单服务学习工具：一个网页服务内的并发操作通过 Mutex 串行保存，但不要同时启动多个服务或用命令行修改同一数据文件。当前直接写入 JSON，不提供跨进程文件锁或断电恢复；删除最大 ID 后，该 ID 可能被再次使用。可将原子写入、持久化 ID 序列、跨进程并发访问支持作为进阶练习。
+
+网站默认仅监听本机，没有账号与用户隔离。若要部署到公网，需要另外配置 HTTPS、身份验证及持久化存储；GitHub 保存源码，GitHub Pages 无法运行 Go 后端。
 
 ## 上传到自己的 GitHub
 
