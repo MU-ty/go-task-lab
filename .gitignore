@@ -1,0 +1,4 @@
+tasks.json
+*.exe
+coverage.out
+bin/
