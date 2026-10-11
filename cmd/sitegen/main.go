@@ -31,6 +31,7 @@ func build(out string) error {
 		}
 		if name == "index.html" {
 			html := string(data)
+			html = strings.ReplaceAll(html, `href="/"`, `href="./"`)
 			for _, asset := range []string{"style.css", "courses.js", "app.js"} {
 				html = strings.ReplaceAll(html, `"/`+asset+`"`, `"./`+asset+`"`)
 			}
