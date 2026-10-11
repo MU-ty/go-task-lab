@@ -88,3 +88,9 @@ go run ./examples/concurrency
 - [A Tour of Go](https://go.dev/tour/)
 - [Go 语言规范](https://go.dev/ref/spec)
 - [标准库文档](https://pkg.go.dev/std)
+
+## 在线 Go 编译器
+
+课程页的「在线编译器」页签嵌入 [OneCompiler](https://onecompiler.com/go)，可自由修改 Go 代码、填写标准输入并运行，无需配置 API key。点击「载入本章示例」将当前课程代码（包含所选参数）发送到编辑器；切换章节不会覆盖正在编辑的代码。运行时，代码与标准输入由 OneCompiler 处理。网络加载失败时可点击「独立窗口打开」。
+
+嵌入和消息协议参见 [OneCompiler 官方文档](https://onecompiler.com/apis/embed-editor)。原有课程示例仍支持本地 Go 服务和 GitHub Pages 上的 Go WebAssembly 运行。

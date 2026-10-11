@@ -13,7 +13,8 @@ function nav(query='') {
 }
 function showTab(value,focus=false) {
   document.querySelectorAll('[data-tab]').forEach(b=>{const selected=b.dataset.tab===value;b.setAttribute('aria-selected',String(selected));b.tabIndex=selected?0:-1;if(selected&&focus)b.focus();});
-  ['learn','code','practice'].forEach(name=>{$(`#panel-${name}`).hidden=name!==value;});
+  ['learn','code','practice','compiler'].forEach(name=>{$(`#panel-${name}`).hidden=name!==value;});
+  if(value==='compiler')ensureCompiler();
 }
 function code(){const n=Number($('#parameter').value);$('#example-code').textContent=COURSES[current].code.replaceAll('{{n}}',Number.isInteger(n)&&n>=1&&n<=9?String(n):'3');}
 function resetRun(message='点击下方按钮，查看 Go 的运行结果。'){generation++;$('#output').textContent=message;$('#run-status').textContent='等待运行';$('#run-code').disabled=false;$('#run-code').textContent='▷ 运行示例';}
@@ -29,7 +30,7 @@ function select(i){
   $('#previous').disabled=i===0;$('#next').disabled=i===COURSES.length-1;$('#chapter-position').textContent=`第 ${i+1} / ${COURSES.length} 章`;nav($('#course-search').value);showTab('learn');
 }
 function feedback(element,correct,text){element.hidden=false;element.className=`feedback ${correct?'correct':'incorrect'}`;element.textContent=text;}
-document.querySelectorAll('[data-tab]').forEach((button,i)=>{button.addEventListener('click',()=>showTab(button.dataset.tab));button.addEventListener('keydown',e=>{let target;if(e.key==='ArrowRight')target=(i+1)%3;if(e.key==='ArrowLeft')target=(i+2)%3;if(e.key==='Home')target=0;if(e.key==='End')target=2;if(target!==undefined){e.preventDefault();showTab(['learn','code','practice'][target],true);}});});
+document.querySelectorAll('[data-tab]').forEach((button,i)=>{button.addEventListener('click',()=>showTab(button.dataset.tab));button.addEventListener('keydown',e=>{if(e.ctrlKey||e.metaKey||e.altKey)return;let target;if(e.key==='ArrowRight')target=(i+1)%4;if(e.key==='ArrowLeft')target=(i+3)%4;if(e.key==='Home')target=0;if(e.key==='End')target=3;if(target!==undefined){e.preventDefault();showTab(['learn','code','practice','compiler'][target],true);}});});
 $('#try-example').addEventListener('click',()=>showTab('code',true));
 $('#parameter').addEventListener('input',()=>{code();resetRun('参数已修改，请重新运行。');});
 $('#reset-parameter').addEventListener('click',()=>{$('#parameter').value='3';code();resetRun('参数已重置，请重新运行。');});
@@ -46,3 +47,12 @@ $('#show-answer').addEventListener('click',()=>{const q=COURSES[current].fill;fe
 $('#previous').addEventListener('click',()=>{if(current>0)select(current-1);});$('#next').addEventListener('click',()=>{if(current<COURSES.length-1)select(current+1);});$('#course-search').addEventListener('input',e=>nav(e.target.value.trim()));
 window.addEventListener('hashchange',()=>{const i=COURSES.findIndex(c=>`#${c.id}`===location.hash);if(i>=0&&i!==current)select(i);});
 const initial=COURSES.findIndex(c=>`#${c.id}`===location.hash);select(initial>=0?initial:0);
+const compilerOrigin='https://onecompiler.com';
+const compilerFrame=$('#onecompiler-frame');
+let compilerStarted=false,compilerLoaded=false;
+function compilerAvailable(){compilerLoaded=true;$('#load-compiler-example').disabled=false;$('#run-compiler-code').disabled=false;$('#compiler-status').textContent='编译器已加载，可直接编辑或载入本章示例';}
+function ensureCompiler(){if(compilerStarted)return;compilerStarted=true;$('#compiler-status').textContent='正在加载 OneCompiler…';compilerFrame.src=compilerOrigin+'/embed/go?listenToEvents=true&codeChangeEvent=true&hideLanguageSelection=true&hideTitle=true&hideNew=true';}
+compilerFrame.addEventListener('load',()=>{if(compilerStarted)compilerAvailable();});
+window.addEventListener('message',event=>{if(event.origin!==compilerOrigin||event.source!==compilerFrame.contentWindow)return;if(event.data&&event.data.language==='go'&&!compilerLoaded)compilerAvailable();});
+$('#load-compiler-example').addEventListener('click',()=>{if(!compilerLoaded)return;compilerFrame.contentWindow.postMessage({eventType:'populateCode',language:'go',files:[{name:'main.go',content:$('#example-code').textContent}]},compilerOrigin);$('#compiler-status').textContent=`已发送「${COURSES[current].title}」示例到编辑器`;});
+$('#run-compiler-code').addEventListener('click',()=>{if(!compilerLoaded)return;compilerFrame.contentWindow.postMessage({eventType:'triggerRun'},compilerOrigin);$('#compiler-status').textContent='已发送运行请求，请查看编译器中的输出区域';});

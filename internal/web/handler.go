@@ -41,7 +41,7 @@ func New(service *task.Service) http.Handler {
 	// Go 1.22+ 标准库同源校验：通过浏览器 Fetch Metadata 防止跨站修改。
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-src https://onecompiler.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			if r.Header.Get("Sec-Fetch-Site") == "cross-site" {
 				writeJSON(w, http.StatusForbidden, map[string]string{"error": "不允许跨站修改"})
