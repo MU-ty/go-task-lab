@@ -2,3 +2,4 @@ tasks.json
 *.exe
 coverage.out
 bin/
+_site/

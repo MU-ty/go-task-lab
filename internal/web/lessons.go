@@ -20,7 +20,7 @@ func runLesson(w http.ResponseWriter, r *http.Request) {
 		}
 		n = value
 	}
-	output, ok := exampleOutput(r.PathValue("id"), n)
+	output, ok := ExampleOutput(r.PathValue("id"), n)
 	if !ok {
 		writeJSON(w, 404, map[string]string{"error": "课程不存在"})
 		return
@@ -37,7 +37,8 @@ func (u learningUser) Greeting() string { return "你好，" + u.Name }
 
 type speaker interface{ Greeting() string }
 
-func exampleOutput(id string, n int) (string, bool) {
+// ExampleOutput 在 HTTP 服务与 WebAssembly 中共用同一份 Go 教学逻辑。
+func ExampleOutput(id string, n int) (string, bool) {
 	var out bytes.Buffer
 	switch id {
 	case "hello":

@@ -35,8 +35,8 @@ $('#parameter').addEventListener('input',()=>{code();resetRun('参数已修改�
 $('#reset-parameter').addEventListener('click',()=>{$('#parameter').value='3';code();resetRun('参数已重置，请重新运行。');});
 $('#run-code').addEventListener('click',async()=>{
   if(!$('#parameter').reportValidity())return;const c=COURSES[current],n=Number($('#parameter').value),token=++generation,b=$('#run-code');b.disabled=true;b.textContent='正在运行…';$('#run-status').textContent='RUNNING';const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),10000);
-  try{const r=await fetch(`/api/lessons/${c.id}/run?n=${n}`,{signal:controller.signal});const body=await r.json();if(!r.ok)throw new Error(body.error||'运行失败');if(token!==generation)return;$('#output').textContent=body.output;$('#run-status').textContent='SUCCESS';}
-  catch(e){if(token!==generation)return;$('#output').textContent=e.name==='AbortError'?'请求超时，请确认 Go 服务正在运行。':`运行失败：${e.message}。请检查 Go 服务后重试。`;$('#run-status').textContent='ERROR';}
+  try{let body;if(window.GoLearningReady){await window.GoLearningReady;body=window.GoLearningRun(c.id,n);if(body.error)throw new Error(body.error);}else{const r=await fetch(`/api/lessons/${c.id}/run?n=${n}`,{signal:controller.signal});body=await r.json();if(!r.ok)throw new Error(body.error||'运行失败');}if(token!==generation)return;$('#output').textContent=body.output;$('#run-status').textContent='SUCCESS';}
+  catch(e){if(token!==generation)return;$('#output').textContent=e.name==='AbortError'?'请求超时，请重试。':`运行失败：${e.message}。请刷新页面后重试。`;$('#run-status').textContent='ERROR';}
   finally{clearTimeout(timer);if(token===generation){b.disabled=false;b.textContent='▷ 再次运行';}}
 });
 $('#copy-code').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('#example-code').textContent);notify('代码已复制，可在本机 Go 环境运行');}catch{notify('无法访问剪贴板，请选中代码后复制');}});

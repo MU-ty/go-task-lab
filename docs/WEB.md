@@ -6,7 +6,9 @@
 2. `internal/web/handler.go` 注册 Go 1.22 方法路由，提供静态资源和 JSON 响应。
 3. `internal/web/static/courses.js` 定义课程讲解、示例代码、题目、答案与解析。
 4. `internal/web/static/app.js` 管理章节切换、标签页、示例参数和练习校验。
-5. `internal/web/lessons.go` 运行预先编译的 Go 教学函数。
+5. `internal/web/lessons.go` 提供两种运行环境共用的 Go 教学函数。
+6. `cmd/playground/main_js_wasm.go` 通过 syscall/js 暴露 Go 函数。
+7. `cmd/sitegen/main.go` 打包 GitHub Pages 静态资源和 WebAssembly。
 
 ## 一次“运行示例”的数据流
 
@@ -41,4 +43,8 @@
 
 ## 部署
 
-源码在 GitHub 开源，网站当前本地运行。要部署 Go 服务，需要支持可执行程序或容器的平台。GitHub Pages 不能直接启动此 Go 后端。
+源码在 GitHub 开源，在线网站发布在 https://mu-ty.github.io/go-task-lab/ 。main 分支更新会触发 Pages 工作流。
+
+Pages 版本不依赖 HTTP 后端：构建程序编译 GOOS=js、GOARCH=wasm 目标，复制同版本 Go JavaScript 运行时，并注入 pages-runtime.js。加载后，前端调用 GoLearningRun，仍执行真实 Go 教学逻辑，包括 goroutine 和 channel。
+
+本地 HTTP 模式和在线 WebAssembly 模式共用 ExampleOutput，避免课程输出出现两个不同实现。站点资源使用相对路径，支持 GitHub Pages 的仓库子目录。

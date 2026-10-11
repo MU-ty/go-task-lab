@@ -43,13 +43,13 @@ func TestLessonParameters(t *testing.T) {
 		t.Fatalf("未知课程: %d", w.Code)
 	}
 	for n := 1; n <= 9; n++ {
-		output, ok := exampleOutput("concurrency", n)
+		output, ok := ExampleOutput("concurrency", n)
 		want := fmt.Sprintf("平方和: %d\n", n*(n+1)*(2*n+1)/6)
 		if !ok || output != want {
 			t.Fatalf("n=%d output=%q want=%q", n, output, want)
 		}
 	}
-	if output, _ := exampleOutput("conditions", 6); output != "通过 60\n" {
+	if output, _ := ExampleOutput("conditions", 6); output != "通过 60\n" {
 		t.Fatalf("边界条件: %q", output)
 	}
 }

@@ -2,6 +2,8 @@
 
 一个中文交互式 Go 语法学习网站。核心流程是 **阅读讲解 → 运行示例 → 完成练习 → 查看解析**。
 
+**在线学习：[GitHub Pages](https://mu-ty.github.io/go-task-lab/)**。无需安装 Go，教学示例由浏览器内的 Go WebAssembly 运行，课程和练习都可直接使用。
+
 ## 启动网站
 
 安装 [Go](https://go.dev/dl/) 1.22 或更高版本，在项目目录运行：
@@ -24,7 +26,7 @@ go run ./cmd/web
 
 ## 示例如何运行
 
-点击“运行示例”调用 Go 后端，实际执行预先编译的教学函数；可将参数 n 调整为 1–9，页面代码与输出同步变化。入门程序和接口示例没有参数。
+在线 Pages 版本通过 WebAssembly 执行真实 Go；本地版本调用 Go HTTP 后端。两者使用同一份教学函数，可将参数 n 调整为 1–9，页面代码与输出同步变化。入门程序和接口示例没有参数。
 
 这里提供固定示例的参数实验，不执行用户提交的任意 Go 代码。需要自由修改时，复制完整示例到本机 `main.go`，执行 `go run main.go`。不依赖外部在线编译服务。
 
@@ -57,7 +59,13 @@ go build -o bin/go-learning-web ./cmd/web
 
 Windows 可改用 `go build -o bin/go-learning-web.exe ./cmd/web`。GitHub Actions 自动进行格式检查、静态检查、竞态测试和编译。
 
-自定义端口：`go run ./cmd/web -addr 127.0.0.1:8081`。网站默认仅监听本机。GitHub 保存源码；GitHub Pages 不运行 Go 后端，目前没有公网网站部署。
+自定义端口：`go run ./cmd/web -addr 127.0.0.1:8081`。本地服务默认仅监听本机。
+
+## GitHub Pages 部署
+
+`.github/workflows/pages.yml` 在 main 分支更新后测试、构建并自动部署。`go run ./cmd/sitegen -out _site` 将页面资源转换为相对路径，编译 `cmd/playground` 为 WebAssembly，并复制匹配版本的 `wasm_exec.js`。生成目录已加入 `.gitignore`，由 Actions 发布。
+
+浏览器首次运行需下载 Go WebAssembly 文件，后续调用直接在浏览器执行，无需远程 HTTP API。GitHub Pages 项目子目录、HTTPS 和章节链接均受支持。
 
 ## 命令行实战
 
