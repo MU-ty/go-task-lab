@@ -24,6 +24,7 @@ type handler struct{ service *task.Service }
 func New(service *task.Service) http.Handler {
 	h := &handler{service: service}
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/lessons/{id}/run", runLesson)
 	// Go 1.22 的路由语法同时指定 HTTP 方法和路径参数。
 	mux.HandleFunc("GET /api/tasks", h.list)
 	mux.HandleFunc("POST /api/tasks", h.add)

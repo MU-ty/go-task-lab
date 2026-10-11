@@ -1,201 +1,48 @@
-// 前端只负责交互；真实数据由 Go API 读取和保存。
-const $ = (selector) => document.querySelector(selector);
-const state = { tasks: [], filter: 'all', search: '', busy: false, connected: false };
-let toastTimer;
-let deleteTarget = null;
-
-$('#today').textContent = new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' }).format(new Date());
-
-function notify(message, error = false) {
-  const toast = $('#toast');
-  toast.textContent = message;
-  toast.classList.toggle('error', error);
-  toast.hidden = false;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { toast.hidden = true; }, error ? 6000 : 2600);
-}
-
-async function api(path, method = 'GET', data) {
-  const options = { method, headers: {} };
-  if (data !== undefined) {
-    options.headers['Content-Type'] = 'application/json';
-    options.body = JSON.stringify(data);
-  }
-  const controller = new AbortController();
-  options.signal = controller.signal;
-  const timer = setTimeout(() => controller.abort(), 10000);
-  try {
-    const response = await fetch(path, options);
-    if (response.status === 204) return null;
-    const body = await response.json();
-    if (!response.ok) throw new Error(body.error || '操作失败，请重试');
-    return body;
-  } catch (error) {
-    if (error.name === 'AbortError') throw new Error('请求超时，请检查 Go 服务并刷新');
-    if (error instanceof TypeError) throw new Error('无法连接 Go 服务，请检查服务是否运行');
-    throw error;
-  } finally { clearTimeout(timer); }
-}
-
-function connection(online) {
-  state.connected = online;
-  $('#connection-dot').className = `connection-dot ${online ? 'online' : 'offline'}`;
-  $('#connection-text').textContent = online ? 'Go 服务已连接' : 'Go 服务连接失败';
-}
-
-function setBusy(busy) {
-  state.busy = busy;
-  $('#add-button').disabled = busy;
-  $('#refresh').disabled = busy;
-  $('#add-button').textContent = busy ? '处理中…' : '添加任务 ↗';
-  document.querySelectorAll('.task-checkbox, .delete-button').forEach((element) => { element.disabled = busy; });
-}
-
-function emptyState(title, message) {
-  const box = document.createElement('div');
-  box.className = 'empty';
-  const icon = document.createElement('span');
-  icon.className = 'empty-icon';
-  icon.textContent = '✓';
-  const heading = document.createElement('strong');
-  heading.textContent = title;
-  const description = document.createElement('p');
-  description.textContent = message;
-  box.append(icon, heading, description);
-  return box;
-}
-
-function render() {
-  const completed = state.tasks.filter((task) => task.done).length;
-  $('#total').textContent = state.tasks.length;
-  $('#open').textContent = state.tasks.length - completed;
-  $('#done').textContent = completed;
-  $('#filter-count').textContent = state.tasks.length;
-  $('#completion-label').textContent = state.tasks.length ? `完成进度 ${Math.round(completed / state.tasks.length * 100)}% · 继续加油` : '今天也是新的开始';
-  const tasks = state.tasks.filter((task) => {
-    const matchesStatus = state.filter === 'all' || (state.filter === 'done' ? task.done : !task.done);
-    return matchesStatus && task.title.toLocaleLowerCase().includes(state.search.toLocaleLowerCase());
+const $ = (s) => document.querySelector(s);
+let current = 0, generation = 0, noticeTimer;
+function notify(text) { $('#toast').textContent=text; $('#toast').hidden=false; clearTimeout(noticeTimer); noticeTimer=setTimeout(()=>{$('#toast').hidden=true;},2500); }
+function nav(query='') {
+  const root=$('#course-nav'); root.replaceChildren(); let group='',count=0;
+  COURSES.forEach((c,i)=>{
+    if (!`${c.title} ${c.group} ${c.concepts.flat().join(' ')}`.toLowerCase().includes(query.toLowerCase())) return;
+    count++; if(group!==c.group){group=c.group;const h=document.createElement('div');h.className='nav-group';h.textContent=group;root.append(h);}
+    const b=document.createElement('button');b.type='button';b.className=`nav-course${i===current?' active':''}`;b.setAttribute('aria-current',i===current?'page':'false');
+    const n=document.createElement('span');n.className='nav-number';n.textContent=String(i+1).padStart(2,'0');const name=document.createElement('span');name.textContent=c.title;b.append(n,name);b.addEventListener('click',()=>select(i));root.append(b);
   });
-  const list = $('#task-list');
-  list.replaceChildren();
-  list.setAttribute('aria-busy', 'false');
-  $('#list-summary').textContent = `显示 ${tasks.length} 项 · 共 ${state.tasks.length} 项任务`;
-  if (!tasks.length) {
-    const isSearch = Boolean(state.search);
-    list.append(emptyState(isSearch ? '没有找到匹配任务' : state.filter === 'done' ? '完成第一项，就从现在开始' : state.filter === 'open' && state.tasks.length ? '都完成了，做得不错' : '给今天写下第一个计划', isSearch ? '试试其他关键词，或清空搜索。' : '从上方添加一件小事，让进步看得见。'));
-  }
-  for (const task of tasks) {
-    const row = document.createElement('div');
-    row.className = `task-row${task.done ? ' completed' : ''}`;
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.className = 'task-checkbox';
-    checkbox.checked = task.done;
-    checkbox.disabled = state.busy;
-    checkbox.setAttribute('aria-label', `${task.done ? '恢复未完成' : '完成'}：${task.title}`);
-    checkbox.addEventListener('change', () => {
-      checkbox.checked = task.done;
-      mutate(() => api(`/api/tasks/${task.id}`, 'PATCH', { done: !task.done }), task.done ? '任务已恢复为未完成' : '又完成一件事，继续加油！');
-    });
-    const copy = document.createElement('div');
-    copy.className = 'task-copy';
-    const title = document.createElement('div');
-    title.className = 'task-name';
-    // 使用 textContent 避免把用户输入当作 HTML。
-    title.textContent = task.title;
-    const meta = document.createElement('div');
-    meta.className = 'task-meta';
-    meta.textContent = `TASK / ${String(task.id).padStart(3, '0')}`;
-    copy.append(title, meta);
-    const status = document.createElement('span');
-    status.className = 'status-pill';
-    status.textContent = task.done ? '已完成' : '进行中';
-    const remove = document.createElement('button');
-    remove.type = 'button';
-    remove.className = 'delete-button';
-    remove.textContent = '×';
-    remove.title = '删除任务';
-    remove.disabled = state.busy;
-    remove.setAttribute('aria-label', `删除：${task.title}`);
-    remove.addEventListener('click', () => {
-      if (state.busy) return;
-      deleteTarget = task;
-      $('#delete-title').textContent = task.title;
-      $('#delete-dialog').returnValue = '';
-      $('#delete-dialog').showModal();
-    });
-    row.append(checkbox, copy, status, remove);
-    list.append(row);
-  }
+  if(!count){const p=document.createElement('p');p.className='nav-empty';p.textContent='没有匹配的课程';root.append(p);}
 }
-
-async function load() {
-  const tasks = await api('/api/tasks');
-  state.tasks = tasks;
-  connection(true);
-  render();
+function showTab(value,focus=false) {
+  document.querySelectorAll('[data-tab]').forEach(b=>{const selected=b.dataset.tab===value;b.setAttribute('aria-selected',String(selected));b.tabIndex=selected?0:-1;if(selected&&focus)b.focus();});
+  ['learn','code','practice'].forEach(name=>{$(`#panel-${name}`).hidden=name!==value;});
 }
-
-async function mutate(action, message, afterSuccess) {
-  if (state.busy) return;
-  setBusy(true);
-  try {
-    await action();
-    if (afterSuccess) afterSuccess();
-    // 写入成功后重新读取，确保页面显示服务器实际数据。
-    try {
-      await load();
-      notify(message);
-    } catch (error) {
-      connection(false);
-      notify(`操作已保存，但列表刷新失败。请点击刷新：${error.message}`, true);
-    }
-  } catch (error) { notify(error.message, true); }
-  finally { setBusy(false); }
+function code(){const n=Number($('#parameter').value);$('#example-code').textContent=COURSES[current].code.replaceAll('{{n}}',Number.isInteger(n)&&n>=1&&n<=9?String(n):'3');}
+function resetRun(message='点击下方按钮，查看 Go 的运行结果。'){generation++;$('#output').textContent=message;$('#run-status').textContent='等待运行';$('#run-code').disabled=false;$('#run-code').textContent='▷ 运行示例';}
+function select(i){
+  current=i;const c=COURSES[i];if(location.hash!==`#${c.id}`)history.replaceState(null,'',`#${c.id}`);
+  $('#breadcrumb').textContent=c.group;$('#chapter-label').textContent=`CHAPTER ${String(i+1).padStart(2,'0')} / GO SYNTAX`;$('#lesson-title').textContent=c.title;$('#lesson-description').textContent=c.description;$('#level-tag').textContent=c.level;
+  $('#concepts').replaceChildren();c.concepts.forEach(([title,text],j)=>{const section=document.createElement('section');section.className='concept';const n=document.createElement('span');n.className='concept-number';n.textContent=String(j+1).padStart(2,'0');const body=document.createElement('div');const h=document.createElement('h3');h.textContent=title;const p=document.createElement('p');p.textContent=text;body.append(h,p);section.append(n,body);$('#concepts').append(section);});
+  $('#pitfall').textContent=c.pitfall;$('#example-hint').textContent=c.hint;$('#parameter').value='3';$('#parameter').disabled=c.parameter===false;code();resetRun();
+  $('#walkthrough').replaceChildren();c.steps.forEach(text=>{const li=document.createElement('li');li.textContent=text;$('#walkthrough').append(li);});
+  $('#choice-question').textContent=c.choice.question;$('#choice-options').replaceChildren();const legend=document.createElement('legend');legend.className='sr-only';legend.textContent='选择一个答案';$('#choice-options').append(legend);
+  c.choice.options.forEach((text,j)=>{const label=document.createElement('label');label.className='option';const input=document.createElement('input');input.type='radio';input.name='answer';input.value=String(j);input.required=true;const letter=document.createElement('span');letter.className='option-letter';letter.textContent=String.fromCharCode(65+j);const content=document.createElement('span');content.textContent=text;label.append(input,letter,content);$('#choice-options').append(label);});
+  $('#fill-question').textContent=c.fill.question;$('#fill-snippet').textContent=c.fill.snippet;$('#fill-answer').value='';$('#choice-feedback').hidden=true;$('#fill-feedback').hidden=true;
+  $('#previous').disabled=i===0;$('#next').disabled=i===COURSES.length-1;$('#chapter-position').textContent=`第 ${i+1} / ${COURSES.length} 章`;nav($('#course-search').value);showTab('learn');
 }
-
-$('#add-form').addEventListener('submit', (event) => {
-  event.preventDefault();
-  const input = $('#task-title');
-  const title = input.value.trim();
-  if (!title) { notify('先写一个任务标题吧', true); input.focus(); return; }
-  if ([...title].length > 120) { notify('标题不能超过 120 个字符', true); return; }
-  const submittedValue = input.value;
-  mutate(() => api('/api/tasks', 'POST', { title }), '新任务已添加', () => {
-    if (input.value === submittedValue) input.value = '';
-    input.focus();
-  });
+function feedback(element,correct,text){element.hidden=false;element.className=`feedback ${correct?'correct':'incorrect'}`;element.textContent=text;}
+document.querySelectorAll('[data-tab]').forEach((button,i)=>{button.addEventListener('click',()=>showTab(button.dataset.tab));button.addEventListener('keydown',e=>{let target;if(e.key==='ArrowRight')target=(i+1)%3;if(e.key==='ArrowLeft')target=(i+2)%3;if(e.key==='Home')target=0;if(e.key==='End')target=2;if(target!==undefined){e.preventDefault();showTab(['learn','code','practice'][target],true);}});});
+$('#try-example').addEventListener('click',()=>showTab('code',true));
+$('#parameter').addEventListener('input',()=>{code();resetRun('参数已修改，请重新运行。');});
+$('#reset-parameter').addEventListener('click',()=>{$('#parameter').value='3';code();resetRun('参数已重置，请重新运行。');});
+$('#run-code').addEventListener('click',async()=>{
+  if(!$('#parameter').reportValidity())return;const c=COURSES[current],n=Number($('#parameter').value),token=++generation,b=$('#run-code');b.disabled=true;b.textContent='正在运行…';$('#run-status').textContent='RUNNING';const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),10000);
+  try{const r=await fetch(`/api/lessons/${c.id}/run?n=${n}`,{signal:controller.signal});const body=await r.json();if(!r.ok)throw new Error(body.error||'运行失败');if(token!==generation)return;$('#output').textContent=body.output;$('#run-status').textContent='SUCCESS';}
+  catch(e){if(token!==generation)return;$('#output').textContent=e.name==='AbortError'?'请求超时，请确认 Go 服务正在运行。':`运行失败：${e.message}。请检查 Go 服务后重试。`;$('#run-status').textContent='ERROR';}
+  finally{clearTimeout(timer);if(token===generation){b.disabled=false;b.textContent='▷ 再次运行';}}
 });
-
-document.querySelectorAll('[data-filter]').forEach((button) => {
-  button.addEventListener('click', () => {
-    state.filter = button.dataset.filter;
-    document.querySelectorAll('[data-filter]').forEach((item) => {
-      const selected = item === button;
-      item.classList.toggle('selected', selected);
-      item.setAttribute('aria-pressed', String(selected));
-    });
-    if (state.connected) render();
-  });
-});
-$('#search').addEventListener('input', (event) => { state.search = event.target.value.trim(); if (state.connected) render(); });
-$('#delete-dialog').addEventListener('close', () => {
-  const task = deleteTarget;
-  deleteTarget = null;
-  if ($('#delete-dialog').returnValue === 'confirm' && task) mutate(() => api(`/api/tasks/${task.id}`, 'DELETE'), '任务已删除');
-});
-
-async function refresh(initial = false) {
-  if (state.busy) return;
-  setBusy(true);
-  try { await load(); if (!initial) notify('列表已更新'); }
-  catch (error) {
-    connection(false);
-    $('#task-list').setAttribute('aria-busy', 'false');
-    $('#task-list').replaceChildren(emptyState('暂时无法读取任务', '请确认 Go 服务正在运行，然后点击刷新重试。'));
-    $('#list-summary').textContent = '连接失败 · 可以刷新重试';
-    notify(error.message, true);
-  } finally { setBusy(false); }
-}
-$('#refresh').addEventListener('click', () => refresh());
-refresh(true);
+$('#copy-code').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('#example-code').textContent);notify('代码已复制，可在本机 Go 环境运行');}catch{notify('无法访问剪贴板，请选中代码后复制');}});
+$('#choice-form').addEventListener('submit',e=>{e.preventDefault();const selected=new FormData(e.currentTarget).get('answer');if(selected===null)return;const q=COURSES[current].choice,correct=Number(selected)===q.answer;feedback($('#choice-feedback'),correct,`${correct?'回答正确。':'再想一想。'} ${q.explanation}`);});
+$('#fill-form').addEventListener('submit',e=>{e.preventDefault();const q=COURSES[current].fill,correct=q.answers.includes($('#fill-answer').value.trim());feedback($('#fill-feedback'),correct,correct?`补全正确。${q.explanation}`:'还不正确。回到本章讲解，检查需要的是关键字、函数名还是运算符。');});
+$('#show-answer').addEventListener('click',()=>{const q=COURSES[current].fill;feedback($('#fill-feedback'),true,`参考答案：${q.answers[0]}。${q.explanation}`);});
+$('#previous').addEventListener('click',()=>{if(current>0)select(current-1);});$('#next').addEventListener('click',()=>{if(current<COURSES.length-1)select(current+1);});$('#course-search').addEventListener('input',e=>nav(e.target.value.trim()));
+window.addEventListener('hashchange',()=>{const i=COURSES.findIndex(c=>`#${c.id}`===location.hash);if(i>=0&&i!==current)select(i);});
+const initial=COURSES.findIndex(c=>`#${c.id}`===location.hash);select(initial>=0?initial:0);
