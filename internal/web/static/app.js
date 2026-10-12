@@ -13,16 +13,18 @@ function nav(query='') {
 }
 function showTab(value,focus=false) {
   document.querySelectorAll('[data-tab]').forEach(b=>{const selected=b.dataset.tab===value;b.setAttribute('aria-selected',String(selected));b.tabIndex=selected?0:-1;if(selected&&focus)b.focus();});
-  ['learn','code','practice','compiler'].forEach(name=>{$(`#panel-${name}`).hidden=name!==value;});
+  ['learn','code','practice','compiler','lab'].forEach(name=>{$(`#panel-${name}`).hidden=name!==value;});
   if(value==='compiler')ensureCompiler();
 }
 function code(){const n=Number($('#parameter').value);$('#example-code').textContent=COURSES[current].code.replaceAll('{{n}}',Number.isInteger(n)&&n>=1&&n<=9?String(n):'3');}
 function resetRun(message='点击下方按钮，查看 Go 的运行结果。'){generation++;$('#output').textContent=message;$('#run-status').textContent='等待运行';$('#run-code').disabled=false;$('#run-code').textContent='▷ 运行示例';}
 function select(i){
   current=i;const c=COURSES[i];if(location.hash!==`#${c.id}`)history.replaceState(null,'',`#${c.id}`);
-  $('#breadcrumb').textContent=c.group;$('#chapter-label').textContent=`CHAPTER ${String(i+1).padStart(2,'0')} / GO SYNTAX`;$('#lesson-title').textContent=c.title;$('#lesson-description').textContent=c.description;$('#level-tag').textContent=c.level;
+  $('#breadcrumb').textContent=c.group;$('#chapter-label').textContent=`CHAPTER ${String(i+1).padStart(2,'0')} / ${c.lab?'GO BACKEND':'GO SYNTAX'}`;$('#lesson-title').textContent=c.title;$('#lesson-description').textContent=c.description;$('#level-tag').textContent=c.level;
   $('#concepts').replaceChildren();c.concepts.forEach(([title,text],j)=>{const section=document.createElement('section');section.className='concept';const n=document.createElement('span');n.className='concept-number';n.textContent=String(j+1).padStart(2,'0');const body=document.createElement('div');const h=document.createElement('h3');h.textContent=title;const p=document.createElement('p');p.textContent=text;body.append(h,p);section.append(n,body);$('#concepts').append(section);});
-  $('#pitfall').textContent=c.pitfall;$('#advanced-study').hidden=!c.challenge;$('#advanced-challenge').textContent=c.challenge||'';$('#course-resources').replaceChildren();(c.resources||[]).forEach(([label,url])=>{const a=document.createElement('a');a.textContent=label+' ↗';a.href=url;a.target='_blank';a.rel='noopener';$('#course-resources').append(a);});$('#example-hint').textContent=c.hint;$('#parameter').value='3';$('#parameter').disabled=c.parameter===false;code();resetRun();
+  $('#pitfall').textContent=c.pitfall;$('#advanced-study').hidden=!c.challenge;$('#advanced-challenge-title').textContent=c.lab?'进阶挑战 · 完成后端实战验收':'进阶挑战 · 在在线编译器中试一试';$('#advanced-challenge').textContent=c.challenge||'';$('#course-resources').replaceChildren();(c.resources||[]).forEach(([label,url])=>{const a=document.createElement('a');a.textContent=label+' ↗';a.href=url;a.target='_blank';a.rel='noopener';$('#course-resources').append(a);});$('#example-hint').textContent=c.hint;$('#parameter').value='3';$('#parameter').disabled=c.parameter===false;code();resetRun();
+  $('#lesson-goals').hidden=!c.goals;$('#goal-list').replaceChildren();(c.goals||[]).forEach(text=>{const li=document.createElement('li');li.textContent=text;$('#goal-list').append(li);});$('#prerequisite-links').replaceChildren();(c.prerequisites||[]).forEach(id=>{const prerequisite=COURSES.find(item=>item.id===id);if(!prerequisite)return;const a=document.createElement('a');a.href='#'+id;a.textContent=prerequisite.title;$('#prerequisite-links').append(a);});
+  const lab=c.lab||{goal:'掌握本章基础，再进入第 21 章的后端工程路线。',steps:['在运行示例中预测输出，再改变参数验证。','完成选择题、填空题与代码修改挑战。','进入后端工程章节，在本机逐步实现任务 API。'],acceptance:'能解释代码并独立修改，而不只是记住答案。',source:'https://github.com/MU-ty/go-task-lab/blob/main/docs/BACKEND.md'};$('#lab-goal').textContent=lab.goal;$('#lab-steps').replaceChildren();lab.steps.forEach(text=>{const li=document.createElement('li');li.textContent=text;$('#lab-steps').append(li);});$('#lab-acceptance').textContent=lab.acceptance;$('#lab-source').href=lab.source;$('#lab-code').textContent=lab.code||'';$('#lab-code-block').hidden=!lab.code;
   $('#walkthrough').replaceChildren();c.steps.forEach(text=>{const li=document.createElement('li');li.textContent=text;$('#walkthrough').append(li);});
   $('#choice-question').textContent=c.choice.question;$('#choice-options').replaceChildren();const legend=document.createElement('legend');legend.className='sr-only';legend.textContent='选择一个答案';$('#choice-options').append(legend);
   c.choice.options.forEach((text,j)=>{const label=document.createElement('label');label.className='option';const input=document.createElement('input');input.type='radio';input.name='answer';input.value=String(j);input.required=true;const letter=document.createElement('span');letter.className='option-letter';letter.textContent=String.fromCharCode(65+j);const content=document.createElement('span');content.textContent=text;label.append(input,letter,content);$('#choice-options').append(label);});
@@ -30,7 +32,8 @@ function select(i){
   $('#previous').disabled=i===0;$('#next').disabled=i===COURSES.length-1;$('#chapter-position').textContent=`第 ${i+1} / ${COURSES.length} 章`;nav($('#course-search').value);showTab('learn');
 }
 function feedback(element,correct,text){element.hidden=false;element.className=`feedback ${correct?'correct':'incorrect'}`;element.textContent=text;}
-document.querySelectorAll('[data-tab]').forEach((button,i)=>{button.addEventListener('click',()=>showTab(button.dataset.tab));button.addEventListener('keydown',e=>{if(e.ctrlKey||e.metaKey||e.altKey)return;let target;if(e.key==='ArrowRight')target=(i+1)%4;if(e.key==='ArrowLeft')target=(i+3)%4;if(e.key==='Home')target=0;if(e.key==='End')target=3;if(target!==undefined){e.preventDefault();showTab(['learn','code','practice','compiler'][target],true);}});});
+const tabButtons=Array.from(document.querySelectorAll('[data-tab]'));
+tabButtons.forEach((button,i)=>{button.addEventListener('click',()=>showTab(button.dataset.tab));button.addEventListener('keydown',e=>{if(e.ctrlKey||e.metaKey||e.altKey)return;let target;if(e.key==='ArrowRight')target=(i+1)%tabButtons.length;if(e.key==='ArrowLeft')target=(i+tabButtons.length-1)%tabButtons.length;if(e.key==='Home')target=0;if(e.key==='End')target=tabButtons.length-1;if(target!==undefined){e.preventDefault();showTab(tabButtons[target].dataset.tab,true);}});});
 $('#try-example').addEventListener('click',()=>showTab('code',true));
 $('#parameter').addEventListener('input',()=>{code();resetRun('参数已修改，请重新运行。');});
 $('#reset-parameter').addEventListener('click',()=>{$('#parameter').value='3';code();resetRun('参数已重置，请重新运行。');});
@@ -47,6 +50,7 @@ $('#show-answer').addEventListener('click',()=>{const q=COURSES[current].fill;fe
 $('#previous').addEventListener('click',()=>{if(current>0)select(current-1);});$('#next').addEventListener('click',()=>{if(current<COURSES.length-1)select(current+1);});$('#course-search').addEventListener('input',e=>nav(e.target.value.trim()));
 window.addEventListener('hashchange',()=>{const i=COURSES.findIndex(c=>`#${c.id}`===location.hash);if(i>=0&&i!==current)select(i);});
 const initial=COURSES.findIndex(c=>`#${c.id}`===location.hash);select(initial>=0?initial:0);
+$('#course-count').textContent=COURSES.length+' CHAPTERS';$('#hero-course-count').textContent=COURSES.length+' 个学习章节';$('#hero-exercise-count').textContent=(COURSES.length*2)+' 道互动练习';
 const compilerOrigin='https://onecompiler.com';
 const compilerFrame=$('#onecompiler-frame');
 let compilerStarted=false,compilerLoaded=false;

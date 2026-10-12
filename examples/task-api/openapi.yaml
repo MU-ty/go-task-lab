@@ -1,0 +1,196 @@
+openapi: 3.0.3
+info:
+  title: Go Backend Lab Task API
+  version: 1.0.0
+  description: 多用户任务服务。写入最多 1 MiB JSON；服务端派生身份；其他用户资源统一 404。
+servers:
+  - url: http://127.0.0.1:8090
+paths:
+  /healthz:
+    get:
+      summary: 进程存活
+      responses:
+        '200': {description: ok}
+  /readyz:
+    get:
+      summary: 数据库与迁移就绪
+      responses:
+        '200': {description: ready}
+        '503': {$ref: '#/components/responses/Error'}
+  /auth/register:
+    post:
+      summary: 注册用户
+      requestBody: {$ref: '#/components/requestBodies/Credentials'}
+      responses:
+        '201':
+          description: 用户已创建，不返回密码或哈希
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/User'}
+        '400': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '413': {$ref: '#/components/responses/Error'}
+        '415': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Error'}
+  /auth/login:
+    post:
+      summary: 验证密码并创建会话
+      requestBody: {$ref: '#/components/requestBodies/Credentials'}
+      responses:
+        '200':
+          description: 随机会话，仅此处返回原始 token
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [token, token_type, expires_at]
+                properties:
+                  token: {type: string, minLength: 43, maxLength: 43}
+                  token_type: {type: string, enum: [Bearer]}
+                  expires_at: {type: string, format: date-time}
+        '401': {$ref: '#/components/responses/Error'}
+        '400': {$ref: '#/components/responses/Error'}
+        '413': {$ref: '#/components/responses/Error'}
+        '415': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Error'}
+  /auth/logout:
+    post:
+      summary: 撤销当前会话
+      security: [{bearer: []}]
+      responses:
+        '204': {description: 已撤销，无正文}
+        '401': {$ref: '#/components/responses/Error'}
+  /tasks:
+    get:
+      summary: 只列出当前用户的任务，按 id 升序
+      security: [{bearer: []}]
+      parameters:
+        - {in: query, name: limit, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+        - {in: query, name: offset, schema: {type: integer, minimum: 0, maximum: 100000, default: 0}}
+      responses:
+        '200':
+          description: 有界集合，空集合为 []
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/Task'}}
+                  limit: {type: integer}
+                  offset: {type: integer}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+    post:
+      summary: 创建属于当前用户的任务
+      security: [{bearer: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [title]
+              properties:
+                title: {type: string, minLength: 1, maxLength: 120}
+      responses:
+        '201':
+          description: 已创建，同时写入审计
+          headers:
+            Location: {schema: {type: string}, description: 新任务路径}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Task'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '413': {$ref: '#/components/responses/Error'}
+        '415': {$ref: '#/components/responses/Error'}
+  /tasks/{id}:
+    parameters:
+      - {in: path, name: id, required: true, schema: {type: integer, format: int64, minimum: 1}}
+    get:
+      summary: 获取属于当前用户的任务
+      security: [{bearer: []}]
+      responses:
+        '200':
+          description: 任务
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Task'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+    patch:
+      summary: 部分更新，至少提交一个非 null 字段
+      security: [{bearer: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                title: {type: string, minLength: 1, maxLength: 120}
+                done: {type: boolean}
+      responses:
+        '200':
+          description: 更新后的任务
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Task'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '413': {$ref: '#/components/responses/Error'}
+        '415': {$ref: '#/components/responses/Error'}
+    delete:
+      summary: 删除当前用户的任务
+      security: [{bearer: []}]
+      responses:
+        '204': {description: 已删除，无正文}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+components:
+  securitySchemes:
+    bearer: {type: http, scheme: bearer}
+  requestBodies:
+    Credentials:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [email, password]
+            properties:
+              email: {type: string, format: email, maxLength: 254}
+              password: {type: string, minLength: 12, description: 最多 128 UTF-8 字节，不进入日志或响应}
+  responses:
+    Error:
+      description: 请求失败，详见 README 中状态合同；系统失败另为 500/503
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [error]
+            properties:
+              error: {type: string}
+  schemas:
+    User:
+      type: object
+      required: [id, email]
+      properties:
+        id: {type: integer, format: int64}
+        email: {type: string}
+    Task:
+      type: object
+      required: [id, title, done, created_at, updated_at]
+      properties:
+        id: {type: integer, format: int64}
+        title: {type: string}
+        done: {type: boolean}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}

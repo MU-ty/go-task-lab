@@ -1,0 +1,32 @@
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: backend_lab
+      POSTGRES_USER: learner
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U learner -d backend_lab"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  api:
+    build: .
+    environment:
+      APP_ENV: development
+      LISTEN_ADDR: 0.0.0.0:8090
+      DATABASE_URL: postgres://learner:${DB_PASSWORD}@db:5432/backend_lab?sslmode=disable
+      ALLOWED_ORIGIN: http://127.0.0.1:8090
+    ports:
+      - "127.0.0.1:8090:8090"
+    depends_on:
+      db:
+        condition: service_healthy
+    init: true
+    stop_grace_period: 15s
+volumes:
+  pgdata:

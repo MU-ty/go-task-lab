@@ -24,7 +24,7 @@ func build(out string) error {
 	if err := os.MkdirAll(out, 0755); err != nil {
 		return err
 	}
-	for _, name := range []string{"index.html", "app.js", "courses.js", "style.css"} {
+	for _, name := range []string{"index.html", "app.js", "courses.js", "backend-courses.js", "style.css"} {
 		data, err := os.ReadFile(filepath.Join("internal", "web", "static", name))
 		if err != nil {
 			return err
@@ -32,7 +32,7 @@ func build(out string) error {
 		if name == "index.html" {
 			html := string(data)
 			html = strings.ReplaceAll(html, `href="/"`, `href="./"`)
-			for _, asset := range []string{"style.css", "courses.js", "app.js"} {
+			for _, asset := range []string{"style.css", "courses.js", "backend-courses.js", "app.js"} {
 				html = strings.ReplaceAll(html, `"/`+asset+`"`, `"./`+asset+`"`)
 			}
 			html = strings.Replace(html, `<script src="./courses.js"`, `<script src="./wasm_exec.js" defer></script><script src="./pages-runtime.js" defer></script><script src="./courses.js"`, 1)

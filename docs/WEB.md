@@ -31,12 +31,12 @@
 
 选择题用 radio 和 FormData 获取答案；填空题匹配课程定义的合法答案。前端使用 textContent 输出讲解、代码和用户反馈。请求期间禁用按钮；课程或参数切换后，旧响应不会覆盖新的课程。
 
-练习只校验选择或填空内容，并给出解释，不编译用户任意填写的代码。希望自由编辑时，复制示例到本机 Go 环境。
+练习只校验选择或填空内容，并给出解释，不编译用户任意填写的代码。希望自由编辑时，使用 OneCompiler 页签；真实网络与数据库实战通过后端实战页签在本机完成。
 
 ## 新增一章
 
 1. 在 COURSES 添加唯一 id、标题、讲解、误区、完整代码和两个练习。
-2. 在 exampleOutput 添加对应 Go 计算逻辑。
+2. 在 ExampleOutput 添加对应 Go 计算逻辑；后端课程则修改 curriculum/backend.cjs 并生成。
 3. 在 lessons_test.go 验证默认参数和边界参数。
 4. 将网页显示的代码复制出来运行，核对它与 API 输出一致。
 5. 运行 go test ./... 和 go vet ./...。
@@ -51,4 +51,6 @@ Pages 版本不依赖 HTTP 后端：构建程序编译 GOOS=js、GOARCH=wasm 目
 
 ## 进阶课程验证
 
-第 11–20 章覆盖语言细节、标准库、并发协作与测试。`go test ./...` 检查服务与教学函数；`node scripts/check-courses.cjs` 在已安装 Go 的环境中逐一编译网页展示的完整程序，校验 20 章、40 道练习的定义与 74 组参数输出。测试章节的实际子测试可通过 `go test ./examples/testing -v` 查看。
+第 11–20 章覆盖语言细节、标准库、并发协作与测试。`go test ./...` 检查服务与教学函数；`node scripts/check-courses.cjs` 在已安装 Go 的环境中逐一编译网页展示的完整程序，校验全部 44 章、88 道练习的定义与多个参数输出。测试章节的实际子测试可通过 `go test ./examples/testing -v` 查看。
+
+第 21–44 章由 curriculum/backend.cjs 生成 backend-courses.js 与 internal/backendlesson。页面追加后端实战目标和阶段路线；独立毕业项目在 examples/task-api，由单独 CI 验证 PostgreSQL 和 Docker。

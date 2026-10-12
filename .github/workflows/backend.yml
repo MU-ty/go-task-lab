@@ -1,0 +1,46 @@
+name: Backend capstone checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: backend_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-development-only
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d backend_test"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      TEST_DATABASE_URL: postgres://postgres:ci-development-only@127.0.0.1:5432/backend_test?sslmode=disable
+    defaults:
+      run:
+        working-directory: examples/task-api
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: examples/task-api/go.mod
+          cache-dependency-path: examples/task-api/go.sum
+      - run: test -z "$(gofmt -l .)"
+      - run: go vet ./...
+      - run: go test -race -cover -v ./...
+      - run: go build ./...
+      - name: Build non-root image and test real HTTP process
+        run: |
+          docker build -t go-backend-lab:ci .
+          docker run --rm --network host -e DATABASE_URL="$TEST_DATABASE_URL" go-backend-lab:ci migrate
+          docker run -d --name backend-smoke --network host -e LISTEN_ADDR=127.0.0.1:8095 -e DATABASE_URL="$TEST_DATABASE_URL" go-backend-lab:ci
+          curl --fail --retry 12 --retry-delay 1 --retry-connrefused http://127.0.0.1:8095/healthz
+          curl --fail http://127.0.0.1:8095/readyz
+          test "$(docker inspect --format '{{.Config.User}}' backend-smoke)" = app
+          docker stop --time 15 backend-smoke
+          docker logs backend-smoke | grep 'shutdown complete'
+      - name: Cleanup smoke container
+        if: always()
+        run: docker rm -f backend-smoke 2>/dev/null || true

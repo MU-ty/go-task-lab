@@ -1,0 +1,5 @@
+.env*
+.git
+*.exe
+coverage.out
+*.dump

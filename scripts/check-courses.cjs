@@ -23,14 +23,22 @@ function expected(id, n) {
     mutex: `安全计数: ${n}\n`,
     testing: '普通值 true\n零值 true\n负数 true\n'
   };
-  if (!(id in outputs)) throw new Error(`Missing expected output: ${id}`);
+  if (!(id in outputs)) {
+    const backend = require('../curriculum/backend.cjs').find(c=>c.id===id);
+    if (!backend) throw new Error(`Missing expected output: ${id}`);
+    return backend.expected(n);
+  }
   return outputs[id];
 }
 
 module.exports = { expected };
 if (require.main === module) {
-  const courses = vm.runInNewContext(fs.readFileSync('internal/web/static/courses.js', 'utf8')+'\nCOURSES');
-  if (courses.length !== 20 || new Set(courses.map(c=>c.id)).size !== 20) throw new Error('Expected 20 unique chapters');
+  const courses = vm.runInNewContext(fs.readFileSync('internal/web/static/courses.js', 'utf8')+'\n'+fs.readFileSync('internal/web/static/backend-courses.js','utf8')+'\nCOURSES');
+  if (courses.length !== 44 || new Set(courses.map(c=>c.id)).size !== 44) throw new Error('Expected 44 unique chapters');
+  for (const c of courses) {
+    for (const id of c.prerequisites||[]) if (!courses.some(item=>item.id===id)) throw new Error('Unknown prerequisite: '+id);
+    if (c.lab && (!c.lab.steps.length || !c.lab.acceptance || !c.lab.source)) throw new Error('Incomplete backend lab: '+c.id);
+  }
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'go-courses-'));
   const file = path.join(scratch, 'main.go');
   let checks = 0;

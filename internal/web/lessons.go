@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+
+	"github.com/MU-ty/go-task-lab/internal/backendlesson"
 )
 
 // 示例在 Go 服务内部执行固定的教学函数；不执行浏览器提交的任意代码。
@@ -108,7 +110,10 @@ func ExampleOutput(id string, n int) (string, bool) {
 		}
 		fmt.Fprintln(&out, "平方和:", sum)
 	default:
-		return advancedOutput(id, n)
+		if output, ok := advancedOutput(id, n); ok {
+			return output, true
+		}
+		return backendlesson.Run(id, n)
 	}
 	return out.String(), true
 }

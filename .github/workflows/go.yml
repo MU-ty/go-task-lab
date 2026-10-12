@@ -15,3 +15,8 @@ jobs:
       - run: go test -race -cover ./...
       - run: go build ./...
       - run: node scripts/check-courses.cjs
+      - name: Verify generated backend examples stay in sync
+        run: |
+          node scripts/generate-backend.cjs
+          gofmt -w internal/backendlesson
+          git diff --exit-code -- internal/backendlesson internal/web/static/backend-courses.js

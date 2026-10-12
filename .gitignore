@@ -3,3 +3,8 @@ tasks.json
 coverage.out
 bin/
 _site/
+**/.env
+**/.env.local
+**/.env.*
+!**/.env.example
+*.dump
