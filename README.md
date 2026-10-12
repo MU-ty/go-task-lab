@@ -21,21 +21,25 @@ go run ./cmd/web
 | 01–04 | 程序入口、变量与类型、条件判断、for 循环 |
 | 05–08 | 函数与错误处理、切片与 range、map、结构体与指针 |
 | 09–10 | 方法与接口、goroutine 与 channel |
+| 11–13 | 闭包与可变参数、defer/panic/recover、切片底层数组 |
+| 14–16 | 错误链、JSON 编解码、泛型与类型约束 |
+| 17–19 | select 与关闭语义、context 取消、Mutex 与数据竞争 |
+| 20 | 表驱动测试、子测试与边界设计 |
 
 每章包含三段中文讲解、常见误区、完整可复制代码、代码阅读提示、一道选择题和一道填空题。选择题和填空题提供即时校验与参考解析。支持课程搜索、章节切换、键盘切换标签页和手机布局。
 
 ## 示例如何运行
 
-在线 Pages 版本通过 WebAssembly 执行真实 Go；本地版本调用 Go HTTP 后端。两者使用同一份教学函数，可将参数 n 调整为 1–9，页面代码与输出同步变化。入门程序和接口示例没有参数。
+在线 Pages 版本通过 WebAssembly 执行真实 Go；本地版本调用 Go HTTP 后端。两者使用同一份教学函数，可将参数 n 调整为 1–9，页面代码与输出同步变化。入门程序和接口示例没有参数。进阶章节提供修改挑战和官方延伸阅读；测试章节同时提供 `examples/testing` 中真正的表驱动子测试。
 
-这里提供固定示例的参数实验，不执行用户提交的任意 Go 代码。需要自由修改时，复制完整示例到本机 `main.go`，执行 `go run main.go`。不依赖外部在线编译服务。
+这里提供固定示例的参数实验，不执行用户提交的任意 Go 代码。需要自由修改时，切换到「在线编译器」载入本章示例，或复制到本机 `main.go` 执行 `go run main.go`。
 
 ## 项目结构
 
 ```text
 cmd/web/                       HTTP 服务入口
 internal/web/lessons.go         Go 教学示例执行
-internal/web/static/courses.js  10 章课程与 20 道练习
+internal/web/static/courses.js  20 章课程与 40 道练习
 internal/web/static/app.js      课程切换、运行、答案反馈
 internal/web/static/            HTML 和响应式 CSS
 internal/web/*_test.go          API、参数和并发测试

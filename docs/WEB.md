@@ -48,3 +48,7 @@
 Pages 版本不依赖 HTTP 后端：构建程序编译 GOOS=js、GOARCH=wasm 目标，复制同版本 Go JavaScript 运行时，并注入 pages-runtime.js。加载后，前端调用 GoLearningRun，仍执行真实 Go 教学逻辑，包括 goroutine 和 channel。
 
 本地 HTTP 模式和在线 WebAssembly 模式共用 ExampleOutput，避免课程输出出现两个不同实现。站点资源使用相对路径，支持 GitHub Pages 的仓库子目录。
+
+## 进阶课程验证
+
+第 11–20 章覆盖语言细节、标准库、并发协作与测试。`go test ./...` 检查服务与教学函数；`node scripts/check-courses.cjs` 在已安装 Go 的环境中逐一编译网页展示的完整程序，校验 20 章、40 道练习的定义与 74 组参数输出。测试章节的实际子测试可通过 `go test ./examples/testing -v` 查看。

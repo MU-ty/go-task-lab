@@ -13,6 +13,16 @@ func TestLessonOutputs(t *testing.T) {
 		{"functions", "5\n"}, {"slices", "0 1\n1 2\n2 3\n"},
 		{"maps", "3 true\n1\n"}, {"structs", "小 Go 4\n"},
 		{"interfaces", "你好，小 Go\n"}, {"concurrency", "平方和: 14\n"},
+		{"closures", "6\n13\n"},
+		{"defer", "恢复: 演示异常\n捕获参数: 3\n最后执行\n继续运行\n"},
+		{"slice-memory", "共享: [3 2 3]\n原切片: [3 2 3]\n新切片: [8 2 99]\n复制: [0 2 3]\n"},
+		{"error-chain", "错误参数: 3\n保存失败: 参数 3 不合法\n"},
+		{"json", "{\"name\":\"Gopher\",\"level\":3}\nGopher 3\n"},
+		{"generics", "整数: 8\n小数: 4\n自定义类型: 5\n"},
+		{"select", "收到: 3\n暂无任务\n关闭后: 0 false\n"},
+		{"context", "计划任务: 3\n取消原因: context canceled\n"},
+		{"mutex", "安全计数: 3\n"},
+		{"testing", "普通值 true\n零值 true\n负数 true\n"},
 	}
 	h := testHandler(t)
 	for _, tc := range cases {

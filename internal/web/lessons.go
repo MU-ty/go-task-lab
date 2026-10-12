@@ -108,7 +108,7 @@ func ExampleOutput(id string, n int) (string, bool) {
 		}
 		fmt.Fprintln(&out, "平方和:", sum)
 	default:
-		return "", false
+		return advancedOutput(id, n)
 	}
 	return out.String(), true
 }
