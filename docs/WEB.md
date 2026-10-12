@@ -60,3 +60,4 @@ Pages 版本不依赖 HTTP 后端：构建程序编译 GOOS=js、GOARCH=wasm 目
 界面采用深绿导航与暖白阅读区，分组目录可折叠，搜索区独立固定在目录上方。手机使用展开式目录，打开时让正文 inert，选择章节或 Escape 后关闭。切换章节将阅读位置与焦点移动到章节标题；CSS 尊重 prefers-reduced-motion。
 
 代码配色只通过创建 span/text 节点完成，完整 source 的 textContent 保持原样，复制与 OneCompiler 载入读取该原文。行号为独立 aria-hidden 区域，不进入复制或编译内容。
+Pages 构建为 CSS 与 app.js 添加内容哈希版本，确保改版后浏览器获取对应资源，避免旧缓存与新页面结构混用。

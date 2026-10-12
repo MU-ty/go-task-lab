@@ -2,6 +2,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"flag"
 	"fmt"
 	"log"
@@ -34,6 +35,16 @@ func build(out string) error {
 			html = strings.ReplaceAll(html, `href="/"`, `href="./"`)
 			for _, asset := range []string{"style.css", "courses.js", "backend-courses.js", "app.js"} {
 				html = strings.ReplaceAll(html, `"/`+asset+`"`, `"./`+asset+`"`)
+			}
+			// 样式和界面脚本使用内容版本，避免浏览器混用改版前后的资源。
+			for _, asset := range []string{"style.css", "app.js"} {
+				content, err := os.ReadFile(filepath.Join("internal", "web", "static", asset))
+				if err != nil {
+					return err
+				}
+				digest := sha256.Sum256(content)
+				versioned := fmt.Sprintf("./%s?v=%x", asset, digest[:6])
+				html = strings.ReplaceAll(html, `"./`+asset+`"`, `"`+versioned+`"`)
 			}
 			html = strings.Replace(html, `<script src="./courses.js"`, `<script src="./wasm_exec.js" defer></script><script src="./pages-runtime.js" defer></script><script src="./courses.js"`, 1)
 			html = strings.ReplaceAll(html, "Go 后端运行示例", "浏览器运行 Go 示例")
