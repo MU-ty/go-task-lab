@@ -1,25 +1,36 @@
 const $ = (s) => document.querySelector(s);
 let current = 0, generation = 0, noticeTimer;
+const openGroups=new Map();
+const motion=()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth';
+function setMenu(open,restoreFocus=false){$('#sidebar').classList.toggle('menu-open',open);$('#menu-toggle').setAttribute('aria-expanded',String(open));$('#menu-toggle').setAttribute('aria-label',open?'关闭课程目录':'打开课程目录');document.body.classList.toggle('menu-open',open);$('main').inert=open;if(restoreFocus)$('#menu-toggle').focus();}
 function notify(text) { $('#toast').textContent=text; $('#toast').hidden=false; clearTimeout(noticeTimer); noticeTimer=setTimeout(()=>{$('#toast').hidden=true;},2500); }
 function nav(query='') {
-  const root=$('#course-nav'); root.replaceChildren(); let group='',count=0;
+  const root=$('#course-nav'); root.replaceChildren(); let group='',count=0,items;
   COURSES.forEach((c,i)=>{
     if (!`${c.title} ${c.group} ${c.concepts.flat().join(' ')}`.toLowerCase().includes(query.toLowerCase())) return;
-    count++; if(group!==c.group){group=c.group;const h=document.createElement('div');h.className='nav-group';h.textContent=group;root.append(h);}
+    count++; if(group!==c.group){group=c.group;const section=document.createElement('details');section.className='nav-section';section.open=Boolean(query)||group===COURSES[current].group||openGroups.get(group)===true;const summary=document.createElement('summary');const label=document.createElement('span');label.textContent=group;const total=document.createElement('small');total.textContent=COURSES.filter(item=>item.group===group).length;summary.append(label,total);items=document.createElement('div');items.className='nav-items';section.append(summary,items);const key=group;summary.addEventListener('click',()=>{if(!query)openGroups.set(key,!section.open);});root.append(section);}
     const b=document.createElement('button');b.type='button';b.className=`nav-course${i===current?' active':''}`;b.setAttribute('aria-current',i===current?'page':'false');
-    const n=document.createElement('span');n.className='nav-number';n.textContent=String(i+1).padStart(2,'0');const name=document.createElement('span');name.textContent=c.title;b.append(n,name);b.addEventListener('click',()=>select(i));root.append(b);
+    const n=document.createElement('span');n.className='nav-number';n.textContent=String(i+1).padStart(2,'0');const name=document.createElement('span');name.textContent=c.title;b.append(n,name);b.addEventListener('click',()=>select(i));items.append(b);
   });
   if(!count){const p=document.createElement('p');p.className='nav-empty';p.textContent='没有匹配的课程';root.append(p);}
+  root.querySelector('[aria-current="page"]')?.scrollIntoView({block:'nearest'});
 }
 function showTab(value,focus=false) {
   document.querySelectorAll('[data-tab]').forEach(b=>{const selected=b.dataset.tab===value;b.setAttribute('aria-selected',String(selected));b.tabIndex=selected?0:-1;if(selected&&focus)b.focus();});
   ['learn','code','practice','compiler','lab'].forEach(name=>{$(`#panel-${name}`).hidden=name!==value;});
   if(value==='compiler')ensureCompiler();
 }
-function code(){const n=Number($('#parameter').value);$('#example-code').textContent=COURSES[current].code.replaceAll('{{n}}',Number.isInteger(n)&&n>=1&&n<=9?String(n):'3');}
+function code(){
+  const n=Number($('#parameter').value),source=COURSES[current].code.replaceAll('{{n}}',Number.isInteger(n)&&n>=1&&n<=9?String(n):'3');
+  const tokens=/\/\/[^\n]*|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|`[^`]*`|\b(?:package|import|func|var|const|type|struct|interface|if|else|for|range|return|defer|go|select|case|default|switch|break|nil|true|false)\b|\b\d+(?:\.\d+)?\b/g;
+  const fragment=document.createDocumentFragment();let end=0;
+  for(const match of source.matchAll(tokens)){fragment.append(document.createTextNode(source.slice(end,match.index)));const span=document.createElement('span');span.className=match[0].startsWith('//')||match[0].startsWith('/*')?'token-comment':match[0].startsWith('"')||match[0].startsWith('`')?'token-string':/^\d/.test(match[0])?'token-number':'token-keyword';span.textContent=match[0];fragment.append(span);end=match.index+match[0].length;}
+  fragment.append(document.createTextNode(source.slice(end)));$('#example-code').replaceChildren(fragment);$('#line-numbers').textContent=source.trimEnd().split('\n').map((_,i)=>i+1).join('\n');
+}
 function resetRun(message='点击下方按钮，查看 Go 的运行结果。'){generation++;$('#output').textContent=message;$('#run-status').textContent='等待运行';$('#run-code').disabled=false;$('#run-code').textContent='▷ 运行示例';}
-function select(i){
+function select(i,navigate=true){
   current=i;const c=COURSES[i];if(location.hash!==`#${c.id}`)history.replaceState(null,'',`#${c.id}`);
+  document.body.classList.toggle('lesson-focused',i>0);if(i>0)$('#learning-roadmap').open=false;document.querySelectorAll('[data-stage]').forEach(a=>{const [start,end]=a.dataset.stage.split('-').map(Number);if(i>=start&&i<=end)a.setAttribute('aria-current','step');else a.removeAttribute('aria-current');});setMenu(false);
   $('#breadcrumb').textContent=c.group;$('#chapter-label').textContent=`CHAPTER ${String(i+1).padStart(2,'0')} / ${c.lab?'GO BACKEND':'GO SYNTAX'}`;$('#lesson-title').textContent=c.title;$('#lesson-description').textContent=c.description;$('#level-tag').textContent=c.level;
   $('#concepts').replaceChildren();c.concepts.forEach(([title,text],j)=>{const section=document.createElement('section');section.className='concept';const n=document.createElement('span');n.className='concept-number';n.textContent=String(j+1).padStart(2,'0');const body=document.createElement('div');const h=document.createElement('h3');h.textContent=title;const p=document.createElement('p');p.textContent=text;body.append(h,p);section.append(n,body);$('#concepts').append(section);});
   $('#pitfall').textContent=c.pitfall;$('#advanced-study').hidden=!c.challenge;$('#advanced-challenge-title').textContent=c.lab?'进阶挑战 · 完成后端实战验收':'进阶挑战 · 在在线编译器中试一试';$('#advanced-challenge').textContent=c.challenge||'';$('#course-resources').replaceChildren();(c.resources||[]).forEach(([label,url])=>{const a=document.createElement('a');a.textContent=label+' ↗';a.href=url;a.target='_blank';a.rel='noopener';$('#course-resources').append(a);});$('#example-hint').textContent=c.hint;$('#parameter').value='3';$('#parameter').disabled=c.parameter===false;code();resetRun();
@@ -30,6 +41,7 @@ function select(i){
   c.choice.options.forEach((text,j)=>{const label=document.createElement('label');label.className='option';const input=document.createElement('input');input.type='radio';input.name='answer';input.value=String(j);input.required=true;const letter=document.createElement('span');letter.className='option-letter';letter.textContent=String.fromCharCode(65+j);const content=document.createElement('span');content.textContent=text;label.append(input,letter,content);$('#choice-options').append(label);});
   $('#fill-question').textContent=c.fill.question;$('#fill-snippet').textContent=c.fill.snippet;$('#fill-answer').value='';$('#choice-feedback').hidden=true;$('#fill-feedback').hidden=true;
   $('#previous').disabled=i===0;$('#next').disabled=i===COURSES.length-1;$('#chapter-position').textContent=`第 ${i+1} / ${COURSES.length} 章`;nav($('#course-search').value);showTab('learn');
+  if(navigate){$('.lesson').scrollIntoView({behavior:motion(),block:'start'});$('#lesson-title').focus({preventScroll:true});}
 }
 function feedback(element,correct,text){element.hidden=false;element.className=`feedback ${correct?'correct':'incorrect'}`;element.textContent=text;}
 const tabButtons=Array.from(document.querySelectorAll('[data-tab]'));
@@ -49,7 +61,11 @@ $('#fill-form').addEventListener('submit',e=>{e.preventDefault();const q=COURSES
 $('#show-answer').addEventListener('click',()=>{const q=COURSES[current].fill;feedback($('#fill-feedback'),true,`参考答案：${q.answers[0]}。${q.explanation}`);});
 $('#previous').addEventListener('click',()=>{if(current>0)select(current-1);});$('#next').addEventListener('click',()=>{if(current<COURSES.length-1)select(current+1);});$('#course-search').addEventListener('input',e=>nav(e.target.value.trim()));
 window.addEventListener('hashchange',()=>{const i=COURSES.findIndex(c=>`#${c.id}`===location.hash);if(i>=0&&i!==current)select(i);});
-const initial=COURSES.findIndex(c=>`#${c.id}`===location.hash);select(initial>=0?initial:0);
+$('#menu-toggle').addEventListener('click',()=>{const open=!$('#sidebar').classList.contains('menu-open');setMenu(open);if(open)$('#course-search').focus();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#sidebar').classList.contains('menu-open')){e.preventDefault();setMenu(false,true);}});
+window.addEventListener('resize',()=>{if(!window.matchMedia('(max-width:760px)').matches)setMenu(false);});
+$('.hero-start').addEventListener('click',e=>{e.preventDefault();select(0);});
+const initial=COURSES.findIndex(c=>`#${c.id}`===location.hash);select(initial>=0?initial:0,false);
 $('#course-count').textContent=COURSES.length+' CHAPTERS';$('#hero-course-count').textContent=COURSES.length+' 个学习章节';$('#hero-exercise-count').textContent=(COURSES.length*2)+' 道互动练习';
 const compilerOrigin='https://onecompiler.com';
 const compilerFrame=$('#onecompiler-frame');

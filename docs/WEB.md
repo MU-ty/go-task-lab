@@ -54,3 +54,9 @@ Pages 版本不依赖 HTTP 后端：构建程序编译 GOOS=js、GOARCH=wasm 目
 第 11–20 章覆盖语言细节、标准库、并发协作与测试。`go test ./...` 检查服务与教学函数；`node scripts/check-courses.cjs` 在已安装 Go 的环境中逐一编译网页展示的完整程序，校验全部 44 章、88 道练习的定义与多个参数输出。测试章节的实际子测试可通过 `go test ./examples/testing -v` 查看。
 
 第 21–44 章由 curriculum/backend.cjs 生成 backend-courses.js 与 internal/backendlesson。页面追加后端实战目标和阶段路线；独立毕业项目在 examples/task-api，由单独 CI 验证 PostgreSQL 和 Docker。
+
+## 前端设计与导航
+
+界面采用深绿导航与暖白阅读区，分组目录可折叠，搜索区独立固定在目录上方。手机使用展开式目录，打开时让正文 inert，选择章节或 Escape 后关闭。切换章节将阅读位置与焦点移动到章节标题；CSS 尊重 prefers-reduced-motion。
+
+代码配色只通过创建 span/text 节点完成，完整 source 的 textContent 保持原样，复制与 OneCompiler 载入读取该原文。行号为独立 aria-hidden 区域，不进入复制或编译内容。
